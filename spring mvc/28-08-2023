@@ -1,0 +1,560 @@
+Spring MVC Step by Step
+	-11Sep2022
+
+
+=> Step 1 : Create Project
+
+“New -> Dynamic Web Project”
+
+
+=> Step 2 : Convert Dynamic Web Project to Maven Project
+
+Right click on the project and select “Configure -> Convert to Maven Project”
+
+=> Step 3: Add spring-web and spring-webmvc dependencies in pom.xml, also add servlet-api, jsp-api and jstl dependencies. 
+
+Final pom.xml file will be like below:
+
+<project xmlns="https://maven.apache.org/POM/4.0.0" xmlns:xsi="https://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="https://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.journaldev.spring.mvc</groupId>
+	<artifactId>spring-mvc-example</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<packaging>war</packaging>
+	<name>Spring MVC Example</name>
+	<description>Spring MVC Hello World Example</description>
+
+	<!-- Add Spring Web and MVC dependencies -->
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-webmvc</artifactId>
+			<version>4.3.9.RELEASE</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-web</artifactId>
+			<version>4.3.9.RELEASE</version>
+		</dependency>
+		<!-- Servlet -->
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>servlet-api</artifactId>
+			<version>2.5</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>javax.servlet.jsp</groupId>
+			<artifactId>jsp-api</artifactId>
+			<version>2.1</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>jstl</artifactId>
+			<version>1.2</version>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.6.1</version>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<artifactId>maven-war-plugin</artifactId>
+				<version>3.0.0</version>
+				<configuration>
+					<warSourceDirectory>WebContent</warSourceDirectory>
+				</configuration>
+			</plugin>
+		</plugins>
+		<finalName>${project.artifactId}</finalName> <!-- added to remove Version from WAR file -->
+	</build>
+</project>
+
+
+=> Step 4: Add Spring MVC DispatcherServlet as Front Controller
+
+Configure DispatcherServlet in web.xml as shown below:
+
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns:xsi="https://www.w3.org/2001/XMLSchema-instance" xmlns="https://java.sun.com/xml/ns/javaee" xsi:schemaLocation="https://java.sun.com/xml/ns/javaee https://java.sun.com/xml/ns/javaee/web-app_3_0.xsd" id="WebApp_ID" version="3.0">
+  <display-name>spring-mvc-example</display-name>
+
+	<!-- Add Spring MVC DispatcherServlet as front controller -->
+	<servlet>
+        <servlet-name>spring</servlet-name>
+        <servlet-class>
+                org.springframework.web.servlet.DispatcherServlet
+        </servlet-class>
+        <init-param>
+       		<param-name>contextConfigLocation</param-name>
+       		<param-value>/WEB-INF/spring-servlet.xml</param-value>
+    	</init-param>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+ 
+    <servlet-mapping>
+        <servlet-name>spring</servlet-name>
+        <url-pattern>/</url-pattern> 
+    </servlet-mapping>
+    
+ </web-app>
+
+
+Note:contextConfigLocation init-param is used to provide the location of spring bean configuration file.
+
+=> Step 5: Configure Spring MVC Bean Configuration File
+
+Create spring bean configuration file spring-servlet.xml as shown below:
+
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:mvc="http://www.springframework.org/schema/mvc"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="
+        http://www.springframework.org/schema/beans     
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/mvc 
+        http://www.springframework.org/schema/mvc/spring-mvc.xsd
+        http://www.springframework.org/schema/context 
+        http://www.springframework.org/schema/context/spring-context.xsd">
+    <mvc:annotation-driven />
+    <context:component-scan
+        base-package="bhaskar" />
+    <mvc:default-servlet-handler />
+    
+ <bean
+		class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<property name="prefix" value="/WEB-INF/views/" />
+		<property name="suffix" value=".jsp" />
+	</bean>
+</beans>
+
+Note : There are three important configurations. 
+
+1.annotation-driven tells DispatcherServlet to look for Controller classes using @Controller annotation.
+
+2.context:component-scan tells DispatcherServlet where to look for controller classes.
+
+3.InternalResourceViewResolver bean configuration to specify location of view pages and suffix used. Controller class methods return name of the view page and then suffix is added to figure out the view page to use for rendering the response.
+
+=> Step 6: Create MVC Controller class
+
+We have a single controller class to respond for two URIs - “/” for home page and “/user” for user page.
+
+package com.nkxgen.spring.mvc.controller;
+
+import java.text.DateFormat;
+import java.util.Date;
+import java.util.Locale;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+
+import com.nkxgen.spring.mvc.model.User;
+
+@Controller
+public class HomeController {
+
+	/**
+	 * Simply selects the home view to render by returning its name.
+	 */
+	@RequestMapping(value = "/login", method = RequestMethod.GET)
+	public String home(Locale locale, Model model) {
+		System.out.println("Home Page Requested, locale = " + locale);
+		Date date = new Date();
+		DateFormat dateFormat = DateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.LONG, locale);
+
+		String formattedDate = dateFormat.format(date);
+
+		model.addAttribute("serverTime", formattedDate);
+
+		return "home";
+	}
+
+	@RequestMapping(value = "/user", method = RequestMethod.POST)
+	public String user(@Validated User user, Model model) {
+		System.out.println("User Page Requested");
+		model.addAttribute("userName", user.getUserName());
+		return "user";
+	}
+}
+
+=> Step 7: Create MVC Model Class
+
+
+Let us create a simple model class with a single variable and it’s getter-setter methods. It’s a simple POJO class.
+
+package com.nkxgen.spring.mvc.model;
+
+public class User {
+	private String userName;
+
+	public String getUserName() {
+		return userName;
+	}
+
+	public void setUserName(String userName) {
+		this.userName = userName;
+	}
+}
+
+=> Step 8: Let us create Spring MVC View Pages
+
+home.jsp
+
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
+<%@ taglib uri="https://java.sun.com/jsp/jstl/core" prefix="c"%>
+<%@ page session="false"%>
+<html>
+<head>
+<title>Home</title>
+</head>
+<body>
+	<h1>Hello world!</h1>
+
+	<P>The time on the server is ${serverTime}.</p>
+
+	<form action="user" method="post">
+		<input type="text" name="userName"><br> <input
+			type="submit" value="Login">
+	</form>
+</body>
+</html>
+
+
+user.jsp
+
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "https://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>User Home Page</title>
+</head>
+<body>
+<h3>Hi ${userName}</h3>
+</body>
+</html>
+
+
+
+
+
+/*-----------------------------spring jdbc--------------------------------*/
+Step by Step Spring JDBC Template Example
+	-20Sep2022
+
+=> 1. Create Dynamic Web Project
+
+=> 2. Convert into Maven Project
+
+=> 3. Add Spring ORM Maven dependencies
+
+We need following dependencies - spring-core, spring-context, spring-jdbc and postgresql. 
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.nkxgen.spring.jdbc</groupId>
+  <artifactId>spring-jdbc1</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <packaging>war</packaging>
+  <name>spring-jdbc1</name>
+  <description>spring jdbc example</description>
+  	<dependencies>
+
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<version>42.5.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-core</artifactId>
+			<version>4.3.9.RELEASE</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-context</artifactId>
+			<version>4.3.9.RELEASE</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-jdbc</artifactId>
+			<version>4.3.9.RELEASE</version>
+		</dependency>
+
+	</dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.8.1</version>
+        <configuration>
+          <release>18</release>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-war-plugin</artifactId>
+        <version>3.2.3</version>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+
+
+=> 4. Create Spring DataSource Configuration
+
+Next step is to create spring configuration class to define DataSource bean. 
+I am using java based configuration, you can also do this using spring bean configuration xml file.
+
+package com.nkxgen.spring.jdbc.config;
+
+
+import javax.sql.DataSource;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.core.env.Environment;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+
+@Configuration
+@ComponentScan("com.nkxgen.spring.jdbc")
+@PropertySource("classpath:database.properties")
+public class AppConfig {
+
+	@Autowired
+	Environment environment;
+
+	private final String URL = "url";
+	private final String USER = "dbuser";
+	private final String DRIVER = "driver";
+	private final String PASSWORD = "dbpassword";
+
+	@Bean
+	DataSource dataSource() {
+		DriverManagerDataSource driverManagerDataSource = new DriverManagerDataSource();
+		driverManagerDataSource.setUrl(environment.getProperty(URL));
+		driverManagerDataSource.setUsername(environment.getProperty(USER));
+		driverManagerDataSource.setPassword(environment.getProperty(PASSWORD));
+		driverManagerDataSource.setDriverClassName(environment.getProperty(DRIVER));
+		return driverManagerDataSource;
+	}
+}
+
+
+
+@Configuration – says that this class is configuration for Spring context.
+
+@ComponentScan(“com.nkxgen.spring.jdbc”)- specifies the package to scan for component classes.
+
+@PropertySource(“classpath:database.properties”)- says that properties will be read from database.properties file.
+
+=> 5. Create database.properties file is shown below.
+
+driver=org.postgresql.Driver
+url=jdbc:postgresql://localhost:5433/postgres
+dbuser=postgres
+dbpassword=abc1234$
+
+=> 6. Create Spring JDBC Model Classes
+
+Next step is to create model classes to map our database table.
+
+public class Employee {
+	private Integer empNo;
+	private Integer deptNo;
+	private String eName;
+	private String job;
+	private Double salary;
+	
+
+	public Employee() {
+	}
+
+	public Employee(Integer eno, Integer dno, String enm, String jb,Double sal) {
+		this.empNo = eno;
+		this.eName = enm;
+		this.job = jb;
+		this.salary = sal;
+		this.deptNo=dno;
+	}
+
+	public Integer getEmpNo() {
+		return empNo;
+	}
+
+	public void setEmpNo(Integer eno) {
+		this.empNo=eno;
+	}
+
+	public Integer getDeptNo() {
+		return deptNo;
+	}
+
+	public void setDeptNo(Integer dno) {
+		this.deptNo = dno;
+	}
+
+	public String getEName() {
+		return eName;
+	}
+
+	public void setEName(String enm) {
+		this.eName = enm;
+	}
+
+	public String getJob() {
+		return job;
+	}
+	public void setJob(String jb) {
+		this.job = jb;
+	}
+	
+	public Double getSalary() {
+		return salary;
+	}
+
+	public void setSalary(double sal) {
+		this.salary = sal;
+	}
+	
+	@Override
+	public String toString() {
+		return "Employee{" + "Emp No=" + empNo + ", deptNo=" + deptNo + ", EmpName='" + eName + '\'' + ", job='" + job
+				+ '\'' + '}';
+	}
+
+}
+
+=> 7. For fetching data from database we need to implement interface RowMapper. 
+This interface has only one method mapRow(ResultSet resultSet, int i), which will return one instance of our model class (i.e. Person).
+
+package com.nkxgen.spring.jdbc.model;
+
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+import org.springframework.jdbc.core.RowMapper;
+
+public class EmployeeMapper implements RowMapper<Employee> {
+
+	public Employee mapRow(ResultSet resultSet, int i) throws SQLException {
+
+		Employee emp = new Employee();
+		emp.setEmpNo(resultSet.getInt("empno"));
+		emp.setEName(resultSet.getString("ename"));
+		emp.setJob(resultSet.getString("job"));
+		emp.setSalary(resultSet.getDouble("sal"));
+		emp.setDeptNo(resultSet.getInt("deptno"));
+		return emp;
+	}
+}
+
+
+=> 8. Create Spring JDBC DAO Interface
+
+Final step is to create DAO classes to map our model class to database table using sql queries. We will also configure DataSource using @Autowired annotation and expose some APIs.
+
+package com.nkxgen.spring.jdbc.dao;
+
+import java.util.List;
+
+import com.nkxgen.spring.jdbc.model.Employee;
+
+public interface EmpDAO {
+	Employee getEmployeeByNo(Integer eno);
+
+	List<Employee> getAllEmployees();
+
+	boolean deleteEmployee(Employee e);
+
+	boolean updateEmployee(Employee e);
+
+	boolean createEmployee(Employee e);
+}
+
+
+=> 9. Create Spring JDBC DAO Implementation
+
+package com.nkxgen.spring.jdbc.dao;
+
+import java.util.List;
+
+import com.nkxgen.spring.jdbc.model.Employee;
+import com.nkxgen.spring.jdbc.model.EmployeeMapper;
+import java.util.List;
+
+import javax.sql.DataSource;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
+
+public class EmpDAOImpl implements EmpDAO{
+	
+	JdbcTemplate jdbcTemplate;
+
+	private final String SQL_FIND_EMPLOYEE = "select * from emp where empno = ?";
+	private final String SQL_DELETE_EMPLOYEE = "delete from emp where empno = ?";
+	private final String SQL_UPDATE_EMPLOYEE = "update emp set ename = ?, job = ?, sal  = ?, deptno  = ? where empno = ?";
+	private final String SQL_GET_ALL = "select * from emp";
+	private final String SQL_INSERT_EMPLOYEE = "insert into emp(empno, ename, job, sal,deptno) values(?,?,?,?,?)";
+
+	@Autowired
+	public EmpDAOImpl(DataSource dataSource) {
+		jdbcTemplate = new JdbcTemplate(dataSource);
+	}
+
+
+	public Employee getEmployeeByNo(Integer eno) {
+		return jdbcTemplate.queryForObject(SQL_FIND_EMPLOYEE, new Object[] { eno }, new EmployeeMapper());
+	}
+
+	public List<Employee> getAllEmployees(){
+		return jdbcTemplate.query(SQL_GET_ALL, new EmployeeMapper());
+	}
+
+	public boolean deleteEmployee(Employee e) {
+		return jdbcTemplate.update(SQL_DELETE_EMPLOYEE, e.getEmpNo()) > 0;
+	}
+
+	public boolean updateEmployee(Employee e) {
+		return jdbcTemplate.update(SQL_UPDATE_EMPLOYEE, e.getEName(), e.getJob(), e.getSalary(),e.getDeptNo(),
+				e.getEmpNo()) > 0;
+	}
+
+	public boolean createEmployee(Employee e) {
+		return jdbcTemplate.update(SQL_INSERT_EMPLOYEE, e.getEmpNo(), e.getEName(), e.getJob(),
+				e.getSalary(),e.getDeptNo()) > 0;
+	}
+}
+
+EmpDAOImpl class is annotated with @Component annotation and in this class we have field with type JdbcTemplate. 
+When constructor of this class will be invoked, an instance of DataSource will be injected into it and we can create an instance of JdbcTemplate. 
+After that we can use in in our methods.
+
+=> 10. Create Controller
+
+=> 11. Create Input & Output JSPs
+
+
