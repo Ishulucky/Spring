@@ -1,0 +1,362 @@
+package com.doctorsch.spring.jdbc.controller;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+
+import com.doctorsch.spring.jdbc.dao.DoctorDAO;
+import com.doctorsch.spring.jdbc.model.DoctorDetails;
+import com.doctorsch.spring.jdbc.model.Patient;
+import com.doctorsch.spring.jdbc.model.UserDetails;
+
+@Controller
+public class DoctorController {
+	DoctorDAO doct;
+
+	@Autowired
+	public DoctorController(DoctorDAO doct) {
+		this.doct = doct;
+	}
+
+	/*
+	 * @RequestMapping(value = "/add", method = RequestMethod.GET) public String home1(Locale locale, Model model) {
+	 * System.out.println("Home Page Requested,");
+	 * 
+	 * return "add"; }
+	 */
+
+	@RequestMapping(value = "/home", method = RequestMethod.GET)
+	public String home(Model m) {
+		List<DoctorDetails> d = doct.getAllDoctorDetails();
+		System.out.print(d);
+		m.addAttribute("elist", d);
+		return "details";
+	}
+
+	@RequestMapping(value = "/one", method = RequestMethod.GET)
+
+	public String onedoc(@Validated DoctorDetails doc, Model m) {
+		DoctorDetails d = doct.getDoctorById(doc.getDoctorid());
+		System.out.println(d);
+		m.addAttribute("doctor", d);
+		return "onedoc";
+	}
+
+	// @RequestMapping(value = "/login", method = RequestMethod.GET)
+	// public String oneuser(@Validated UserDetails us, Model m) {
+	// UserDetails d = doct.getUserByUsername("niki");
+	// System.out.println(d);
+	// m.addAttribute("user", d);
+	// return "login";
+	// }
+	@RequestMapping(value = "/", method = RequestMethod.GET)
+	public String login(Model m) {
+		return "loginpage";
+	}
+
+	@RequestMapping(value = "/valid", method = RequestMethod.GET)
+	public String login(@Validated UserDetails us, Model model) {
+		UserDetails d = doct.getUserByUsername(us.getUsername());
+		if (d.getPassword().equals(us.getPassword())) {
+			model.addAttribute("elist", doct.getAllDoctorDetails());
+			return "details";
+		} else {
+			return "loginpage";
+		}
+	}
+	
+	@RequestMapping(value = "/patient", method = RequestMethod.GET)
+	public String patientdetail(Model m) {
+		return "patient";
+	}
+	
+	@RequestMapping(value = "/booking", method = RequestMethod.GET)
+	public String bookingAppointment(Patient p, Model model) {
+		    boolean b=doct.addPatient(p);
+		    System.out.println(p);
+		    System.out.println("successful added");
+			model.addAttribute("detail",p);
+			return "book";
+	
+	}
+}
+
+
+
+---------------------------------------------------------------------------------------------
+package com.doctorsch.spring.jdbc.dao;
+
+import java.util.List;
+
+import com.doctorsch.spring.jdbc.model.DoctorDetails;
+import com.doctorsch.spring.jdbc.model.Patient;
+import com.doctorsch.spring.jdbc.model.UserDetails;
+
+public interface DoctorDAO {
+
+	// boolean createDoctorSchedule(Doctor d);
+	DoctorDetails getDoctorById(Integer doctorid);
+
+	UserDetails getUserByUsername(String username);
+
+	List<DoctorDetails> getAllDoctorDetails();
+	boolean addPatient(Patient p);
+
+}
+-------------------------------------------------------------
+package com.doctorsch.spring.jdbc.dao;
+
+import java.util.List;
+
+import javax.sql.DataSource;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import com.doctorsch.spring.jdbc.model.DoctorDetails;
+import com.doctorsch.spring.jdbc.model.DoctorMapper;
+import com.doctorsch.spring.jdbc.model.UserDetails;
+import com.doctorsch.spring.jdbc.model.UserMapper;
+import com.doctorsch.spring.jdbc.model.Patient;
+
+public class DoctorDAOImpl implements DoctorDAO {
+	JdbcTemplate jdbcTemplate;
+	// private final String SQL_INSERT_DOCTORSCHEDULE = "INSERT INTO DoctorSchedule21 (doct_id, doct_sindex,
+	// dcsc_schedule, dcsc_avl_from, dcsc_avl_to, dcsc_app_slot) VALUES (?, ?, ?, ?, ?, ?)";
+	private final String SQL_GET_ALL = "select * from doctors";
+	private final String SQL_GET_ONE = "select * from doctors where doctorid=?";
+	private final String SQL_GET_USER = "select * from ish_login where username=?";
+	private final String SQL_INSERT_PATIENT = " insert into patients(name,doc_id ,age, gender, bloodgroup, phonenumber, date, timeslot) values(?,?,?,?,?,?,?,?)";
+	@Autowired
+	public DoctorDAOImpl(DataSource dataSource) {
+		jdbcTemplate = new JdbcTemplate(dataSource);
+	}
+
+	/*
+	 * @Override public boolean createDoctorSchedule(Doctor d) {
+	 * 
+	 * return jdbcTemplate.update(SQL_INSERT_DOCTORSCHEDULE, d.getDoct_id(), d.getDoct_sindex(), d.getDcsc_schedule(),
+	 * d.getDcsc_avl_from(), d.getDcsc_avl_to(), d.getDcsc_app_slot()) > 0; }
+	 */
+	@Override
+	public List<DoctorDetails> getAllDoctorDetails() {
+		return jdbcTemplate.query(SQL_GET_ALL, new DoctorMapper());
+	}
+
+	public DoctorDetails getDoctorById(Integer doctorid) {
+		return jdbcTemplate.queryForObject(SQL_GET_ONE, new Object[] { doctorid }, new DoctorMapper());
+	}
+
+	public UserDetails getUserByUsername(String username) {
+		return jdbcTemplate.queryForObject(SQL_GET_USER, new Object[] { username }, new UserMapper());
+	}
+
+	@Override
+	public boolean addPatient(Patient p) {
+		// TODO Auto-generated method stub
+		return jdbcTemplate.update(SQL_INSERT_PATIENT,p.getName(),p.getDoc_id(),p.getAge(),
+				p.getGender(),p.getBloodgroup(),p.getPhonenumber(),p.getDate(),p.getTimeSlot())>0;
+		
+	}
+}
+------------------------------------------------------------------
+package com.doctorsch.spring.jdbc.model;
+
+public class Patient {
+    private int slot_id;
+    private String name;
+    private int age;
+    private String gender;
+    private String bloodgroup;
+    private String phonenumber;
+    private String date;
+    private String timeSlot;
+    private int doc_id;
+	@Override
+	public String toString() {
+		return "Patient [slot_id=" + slot_id + ", name=" + name + ", age=" + age + ", gender=" + gender
+				+ ", bloodgroup=" + bloodgroup + ", phonenumber=" + phonenumber + ", date=" + date + ", timeSlot="
+				+ timeSlot + ", doc_id=" + doc_id + "]";
+	}
+	public Patient(int slot_id, String name, int age, String gender, String bloodgroup, String phonenumber, String date,
+			String timeSlot, int doc_id) {
+		super();
+		this.slot_id = slot_id;
+		this.name = name;
+		this.age = age;
+		this.gender = gender;
+		this.bloodgroup = bloodgroup;
+		this.phonenumber = phonenumber;
+		this.date = date;
+		this.timeSlot = timeSlot;
+		this.doc_id = doc_id;
+	}
+	public Patient() {
+		super();
+	}
+	public int getSlot_id() {
+		return slot_id;
+	}
+	public void setSlot_id(int slot_id) {
+		this.slot_id = slot_id;
+	}
+	public String getName() {
+		return name;
+	}
+	public void setName(String name) {
+		this.name = name;
+	}
+	public int getAge() {
+		return age;
+	}
+	public void setAge(int age) {
+		this.age = age;
+	}
+	public String getGender() {
+		return gender;
+	}
+	public void setGender(String gender) {
+		this.gender = gender;
+	}
+	public String getBloodgroup() {
+		return bloodgroup;
+	}
+	public void setBloodgroup(String bloodgroup) {
+		this.bloodgroup = bloodgroup;
+	}
+	public String getPhonenumber() {
+		return phonenumber;
+	}
+	public void setPhonenumber(String phonenumber) {
+		this.phonenumber = phonenumber;
+	}
+	public String getDate() {
+		return date;
+	}
+	public void setDate(String date) {
+		this.date = date;
+	}
+	public String getTimeSlot() {
+		return timeSlot;
+	}
+	public void setTimeSlot(String timeSlot) {
+		this.timeSlot = timeSlot;
+	}
+	public int getDoc_id() {
+		return doc_id;
+	}
+	public void setDoc_id(int doc_id) {
+		this.doc_id = doc_id;
+	}
+	
+}
+-------------------------------------------------------------------------------------------
+<%@ page import="com.doctorsch.spring.jdbc.model.Patient,com.doctorsch.spring.jdbc.dao.DoctorDAOImpl"%>
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1" pageEncoding="ISO-8859-1"%>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="ISO-8859-1">
+    <title>Selected Doctor</title>
+    <!-- Include Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap/dist/css/bootstrap.min.css">
+    
+    <!-- Add your custom CSS styles here -->
+    <style>
+        /* Example custom CSS styles */
+        .custom-heading {
+            color: #007bff; /* Blue color */
+        }
+        .custom-message {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-4">
+            <% Patient a = (Patient) request.getAttribute("detail"); %>
+        </div>
+        <div class="col-md-8">
+            <!-- Apply custom CSS styles to elements -->
+            <h4 class="custom-heading">Name: <%= a.getName() %></h4>
+            <h4 class="custom-heading">Appointment Date: <%= a.getDate() %></h4>
+            <p class="custom-message">Successfully booked..........</p>
+        </div>
+    </div>
+</div>
+
+<!-- Include Bootstrap JS (optional) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap/dist/js/bootstrap.min.js"></script>
+</body>
+</html>
+--------------------------------------------------------------------------------------------------
+
+
+<%@ page import=" com.doctorsch.spring.jdbc.model.Patient,com.doctorsch.spring.jdbc.dao.DoctorDAOImpl"%>
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+    pageEncoding="ISO-8859-1"%>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="ISO-8859-1">
+    <title>Patient Information</title>
+    <!-- Include Bootstrap CSS from a CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.5.2/dist/css/bootstrap.min.css">
+</head>
+<body>
+    <form action="booking" method="get" class="container mt-5">
+        <h1 class="mb-4">Patient Information Form</h1>
+        <div class="mb-3">
+            <label for="name" class="form-label">Name:</label>
+            <input type="text" id="name" name="name" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="age" class="form-label">Age:</label>
+            <input type="text" id="age" name="age" class="form-control">
+        </div>
+
+        <div class="mb-3">
+            <label for="gender" class="form-label">Gender:</label>
+            <input type="text" id="gender" name="gender" class="form-control">
+        </div>
+
+        <div class="mb-3">
+            <label for="bloodgroup" class="form-label">Blood Group:</label>
+            <input type="text" id="bloodgroup" name="bloodgroup" class="form-control">
+        </div>
+
+        <div class="mb-3">
+            <label for="phonenumber" class="form-label">Phone Number:</label>
+            <input type="text" id="phonenumber" name="phonenumber" class="form-control">
+        </div>
+
+        <div class="mb-3">
+            <label for="date" class="form-label">Date:</label>
+            <input type="text" id="date" name="date" class="form-control">
+        </div>
+
+        <div class="mb-3">
+            <label for="timeslot" class="form-label">Time Slot:</label>
+            <input type="text" id="timeslot" name="timeslot" class="form-control">
+        </div>
+
+        <div class="mb-3">
+            <label for="doc_id" class="form-label">doc_id:</label>
+            <input type="text" id="doc_id" name="doc_id" class="form-control">
+        </div>
+
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+    
+
+     <script src="https://cdn.jsdelivr.net/npm/bootstrap/dist/js/bootstrap.min.js"></script>
+</body>
+</html>
