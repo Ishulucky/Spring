@@ -1,0 +1,187 @@
+Create table Slot_times2(Doc_id INT,Appointment_Date Date,Appointment_Day VARCHAR(20),Available_from timestamp,
+Available_to timestamp,mins int,no_slots INT,test interval);
+
+Insert into Slot_times2 (Doc_id ,Appointment_Date ,Appointment_Day ,Available_from ,
+Available_to,mins,test) values (2,'2023-09-05',2,'2023-09-05 10:00','2023-09-05 17:00','15','15 minutes');
+
+Select * from Slot_times2
+
+Create table Slot_times_new(Doc_id INT,
+				   Appointment_Date Date,
+				   Appointment_Day VARCHAR(20),		   
+Slot_time VARCHAR(100),
+Booked VARCHAR(2))				  
+				  
+select * from Slot_times_new
+delete from Slot_times_new
+insert into Slot_times_new values (2,'2023-09-05',2,generate_series('2023-09-05 10:00'::timestamp,'2023-09-05 17:00'::timestamp,INTERVAL '15 minutes'),'Y')	
+
+update slot_times_new set booked='N' where slot_time='2023-09-05 10:00:00'
+insert into Slot_times_new(doc_id,appointment_date,appointment_day,slot_time) values (2,'2023-09-05',2,'2023-09-05 17:30:00')
+
+
+-----------------------
+Procedure1
+------------------------
+
+CREATE OR REPLACE FUNCTION P1(
+	apdate1 varchar(20),
+	doctor_id integer)
+    RETURNS numeric
+    LANGUAGE 'plpgsql'
+   
+  
+AS $$
+declare 
+n integer;
+BEGIN
+    Select count(*) into n  from Slot_times_new s,Slot_times2 s1 where s1.doc_id=s.doc_id 
+and s1.Appointment_Day = apdate1 
+and s1.Appointment_Date =s.Appointment_Date 
+and s1.doc_id=doctor_id;
+return n;
+END; 
+$$;
+
+select p1('2',2);
+
+-----------------------
+procedure2
+-----------------------
+
+CREATE OR REPLACE FUNCTION p2(
+	apdate1 date,
+	doctor_id int)
+    RETURNS TABLE(doc_id int, 
+				  appointment_date date, 
+				  appointment_day varchar(20), 
+				  slot_time varchar(20), 
+				  booked varchar(20)) 
+    LANGUAGE 'plpgsql'
+AS $$
+BEGIN
+    RETURN QUERY Select s.* from Slot_times_new s,Slot_times2 s1 where s1.doc_id=s.doc_id 
+and s1.Appointment_Date = apdate1 
+and s1.Appointment_Date =s.Appointment_Date
+and s1.doc_id=doctor_id and  s.Booked='Y';
+END; 
+$$;
+
+select * from p2('2023-09-05',2);
+
+----------------------------
+procedure3
+-----------------------------
+CREATE OR REPLACE FUNCTION p3(
+	apdate1 date,
+	apdate2 date,
+	doctor_id integer)
+    RETURNS TABLE(doc_id integer, 
+				  appointment_date date, 
+				  appointment_day varchar(225), 
+				  slot_time varchar(225), 
+				  booked varchar(225)) 
+    LANGUAGE 'plpgsql'
+
+
+AS $$
+BEGIN
+    RETURN QUERY Select s.* from Slot_times_new s,Slot_times2 s1 where s1.doc_id=s.doc_id 
+and s1.Appointment_Date =s.Appointment_Date and s1.Appointment_Date between apdate1 and apdate2 and s1.doc_id=doctor_id and  s.Booked is null;
+END; 
+$$;
+
+select * from p3('2023-09-05','2023-09-10',2);
+
+-------------------
+procedure 4
+-------------------
+CREATE OR REPLACE FUNCTION p4(
+	apdate1 date,
+	apdate2 date)
+    RETURNS TABLE(doc_id integer, 
+				  appointment_date date, 
+				  appointment_day varchar(225), 
+				  slot_time varchar(225), 
+				  booked varchar(225)) 
+    LANGUAGE 'plpgsql'
+
+
+AS $$
+BEGIN
+    RETURN QUERY Select s.* from Slot_times_new s,Slot_times2 s1 where s1.doc_id=s.doc_id 
+and s1.Appointment_Date =s.Appointment_Date and s1.Appointment_Date between apdate1 and apdate2 and  s.Booked is null;
+END; 
+$$;
+
+select * from p4('2023-09-05','2023-09-10');
+
+------------------
+trigger1
+-------------------
+
+CREATE TRIGGER doctor_insert
+AFTER INSERT on Slot_times2
+for each row
+execute function insert_slots();
+
+
+CREATE OR REPLACE FUNCTION insert_slots()
+    RETURNS trigger
+    LANGUAGE 'plpgsql'
+AS $$
+DECLARE 
+	trans_cursor CURSOR FOR SELECT * from Slot_times2 where doc_id=NEW.doc_id and Appointment_Date=NEW.Appointment_Date  ;
+	Rec1 RECORD;
+Begin
+	
+	OPEN trans_cursor;
+	Loop
+    	FETCH trans_cursor INTO Rec1;
+	  	Exit When not found;
+		insert into Slot_times_new (Doc_id,Appointment_Date,Appointment_Day,Slot_time,Booked)
+		select Rec1.Doc_id,Rec1.Appointment_Date,Rec1.Appointment_Day,a.i,
+		'N' from generate_series(Rec1.Available_from ::timestamp,Rec1.Available_to ::timestamp,Rec1.test) a(i);
+
+	end loop;
+		RETURN NEW;
+	CLOSE trans_cursor;
+End; 
+$$;
+
+Insert into Slot_times2 (Doc_id ,Appointment_Date ,Appointment_Day ,Available_from ,
+Available_to,mins,test) values (4,'2023-09-05',3,'2023-09-05 10:00','2023-09-05 17:00','15','15 minutes');
+
+
+
+CREATE TRIGGER doctor_update1
+AFTER update on Slot_times2
+for each row
+execute function update_slots();
+
+
+CREATE OR REPLACE FUNCTION update_slots()
+    RETURNS trigger
+    LANGUAGE 'plpgsql'
+AS $$
+DECLARE 
+	trans_cursor1 CURSOR FOR SELECT * from Slot_times2 where doc_id=NEW.doc_id and Appointment_Date=NEW.Appointment_Date  ;
+	Rec1 RECORD;
+Begin
+	
+	OPEN trans_cursor1;
+	Loop
+    	FETCH trans_cursor1 INTO Rec1;
+	  	Exit When not found;
+		delete  from Slot_times_new where doc_id=Rec1.Doc_id and Appointment_Date=Rec1.Appointment_Date;
+		insert into Slot_times_new (Doc_id,Appointment_Date,Appointment_Day,Slot_time,Booked)
+		select Rec1.Doc_id,Rec1.Appointment_Date,Rec1.Appointment_Day,a.i,
+		'N' from generate_series(Rec1.Available_from ::timestamp,Rec1.Available_to ::timestamp,Rec1.test) a(i);
+
+	end loop;
+		RETURN NEW;
+	CLOSE trans_cursor1;
+End; 
+$$;
+
+update Slot_times2 set Available_to='2023-09-05 14:00' where doc_id=4
